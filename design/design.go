@@ -41,10 +41,7 @@ var _ = Service("app", func() {
 	Method("postMessage", func() {
 		Security(APIKeyAuth)
 		Payload(PostMessagePayload)
-		Result(func() {
-			Attribute("answer", String)
-			Required("answer")
-		})
+		Result(PostMessageResult)
 		HTTP(func() {
 			POST("/message")
 			Header("key:X-API-Key")
@@ -77,8 +74,13 @@ curl https://api.openai.com/v1/chat/completions \
 var PostMessagePayload = Type("PostMessagePayload", func() {
 	APIKey("api_key", "key", String)
 	Attribute("model", String)
-	Attribute("messages", ArrayOf(String))
+	Attribute("messages", ArrayOf(MessageModel))
 	Required("model", "messages")
+})
+var MessageModel = Type("MessageModel", func() {
+	Attribute("role", String)
+	Attribute("content", String)
+	Required("role", "content")
 })
 
 /*
@@ -92,7 +94,7 @@ var PostMessagePayload = Type("PostMessagePayload", func() {
     "index": 0,
     "message": {
       "role": "assistant",
-      "content": "\n\nHello there, how may I assist you today?",
+      "content": "Hello there, how may I assist you today?"
     },
     "logprobs": null,
     "finish_reason": "stop"
@@ -106,7 +108,23 @@ var PostMessagePayload = Type("PostMessagePayload", func() {
 */
 
 var PostMessageResult = Type("PostMessageResult", func() {
-	Attribute("email")
-	Attribute("authority")
-	Required("email", "authority")
+	Attribute("id", String)
+	Attribute("object", String)
+	Attribute("created", String)
+	Attribute("system_fingerprint", String)
+	Attribute("choices", Choices)
+	Attribute("usage", Usage)
+})
+
+var Choices = Type("Choices", func() {
+	Attribute("index", String)
+	Attribute("message", MessageModel)
+	Attribute("logprobs", Boolean)
+	Attribute("finish_reason", String)
+})
+
+var Usage = Type("Usage", func() {
+	Attribute("prompt_tokens", Int64)
+	Attribute("completionTokens", Int64)
+	Attribute("totalTokens", Int64)
 })
