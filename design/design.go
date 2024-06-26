@@ -75,7 +75,7 @@ var PostMessagePayload = Type("PostMessagePayload", func() {
 	APIKey("api_key", "key", String)
 	Attribute("model", String)
 	Attribute("messages", ArrayOf(MessageModel))
-	Required("model", "messages")
+	Required("key", "model", "messages")
 })
 var MessageModel = Type("MessageModel", func() {
 	Attribute("role", String)

@@ -13,6 +13,9 @@ func (e *ErrorType) Error() string {
 }
 
 var (
-	ErrInternal     = ErrorType{"0000", "internal server error", "InternalServerError"}
-	ErrUserNotFound = ErrorType{"1000", "user does not exist", "Unauthorized"}
+	ErrInternal      = ErrorType{"0000", "internal server error", "InternalServerError"}
+	ErrInvalidApiKey = ErrorType{"1000", "user does not exist", "Unauthorized"}
+	ErrCanNotMarshal = ErrorType{"2000", "user does not exist", "BadRequest"}
+	ErrCanNotRequest = ErrorType{"3000", "user does not exist", "BadRequest"}
+	//ErrInvalidApiKey = ErrorType{"1000", "user does not exist", "Unauthorized"}
 )

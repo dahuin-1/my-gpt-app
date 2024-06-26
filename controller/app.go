@@ -1,23 +1,30 @@
 package controller
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/spf13/viper"
+	"goa.design/goa/v3/security"
 	"log"
 	"my-gpt/gen/app"
-
-	"goa.design/goa/v3/security"
+	"my-gpt/pkg/db"
+	"net/http"
 )
+
+var client http.Client
 
 // gpt service example implementation.
 // The example methods log the requests and return zero values.
 type gptsrvc struct {
 	logger *log.Logger
+	client http.Client
 }
 
 // NewGpt returns the gpt service implementation.
 func NewGpt(logger *log.Logger) app.Service {
-	return &gptsrvc{logger}
+	return &gptsrvc{logger, client}
 }
 
 func (s *gptsrvc) makeError(e ErrorType) error {
@@ -30,39 +37,41 @@ func (s *gptsrvc) JWTAuth(ctx context.Context, token string, scheme *security.JW
 	return ctx, fmt.Errorf("not implemented")
 }
 
-// PostMessage implements postMessage.
+func (s *gptsrvc) APIKeyAuth(ctx context.Context, key string, scheme *security.APIKeyScheme) (context.Context, error) {
+	apiKey := viper.GetString("auth.api_key")
+	if apiKey != key {
+		return nil, s.makeError(ErrInvalidApiKey)
+	}
+	return ctx, nil
+}
+
+// PostMessage implements postMessage. https://platform.openai.com/docs/api-reference/chat/create
 func (s *gptsrvc) PostMessage(ctx context.Context, p *app.PostMessagePayload) (res *app.PostMessageResult, err error) {
 	res = &app.PostMessageResult{}
-	s.logger.Print("gpt.postMessage")
+	s.logger.Print("postMessage")
+	//api call
+	requestByte, err := json.Marshal(&db.PostMessagePayload{
+		Model:    p.Model,
+		Messages: p.Messages,
+	})
+	if err != nil {
+		return res, s.makeError(ErrCanNotMarshal)
+	}
+	req, err := http.NewRequest(http.MethodPost, viper.GetString("url"), bytes.NewBuffer(requestByte))
+	if err != nil {
+		return res, s.makeError(ErrCanNotRequest)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.Key))
+	response, err := s.client.Do(req)
+	if err != nil {
+		return res, s.makeError(ErrInternal)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return res, s.makeError(ErrInternal)
+	}
+	//res
+
 	return
-}
-
-type PostMessagePayload struct {
-	Model    string `json:"model"`
-	Messages []struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
-	} `json:"messages"`
-}
-
-type PostMessageResult struct {
-	ID                string `json:"id"`
-	Object            string `json:"object"`
-	Created           int    `json:"created"`
-	Model             string `json:"model"`
-	SystemFingerprint string `json:"system_fingerprint"`
-	Choices           []struct {
-		Index   int `json:"index"`
-		Message struct {
-			Role    string `json:"role"`
-			Content string `json:"content"`
-		} `json:"message"`
-		Logprobs     bool   `json:"logprobs,omitempty"`
-		FinishReason string `json:"finish_reason"`
-	} `json:"choices"`
-	Usage struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
-		TotalTokens      int `json:"total_tokens"`
-	} `json:"usage"`
 }
